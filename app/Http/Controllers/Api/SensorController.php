@@ -60,9 +60,28 @@ class SensorController extends Controller
     /**
      * Web → Ambil riwayat 50 data sensor terakhir.
      */
-    public function history(): AnonymousResourceCollection
+    public function history(Request $request): AnonymousResourceCollection
     {
-        $readings = SensorReading::latest()->take(50)->get();
+        $query = SensorReading::query();
+
+        if ($request->filled('start_date')) {
+            $query->whereDate('recorded_at', '>=', $request->start_date);
+        }
+
+        if ($request->filled('end_date')) {
+            $query->whereDate('recorded_at', '<=', $request->end_date);
+        }
+
+        if ($request->filled('is_raining')) {
+            $query->where('is_raining', filter_var($request->is_raining, FILTER_VALIDATE_BOOLEAN));
+        }
+
+        if ($request->filled('pump_status')) {
+            $query->where('pump_status', filter_var($request->pump_status, FILTER_VALIDATE_BOOLEAN));
+        }
+
+        // Pagination 20 baris per halaman
+        $readings = $query->latest('recorded_at')->paginate(20);
 
         return SensorReadingResource::collection($readings);
     }
@@ -74,6 +93,12 @@ class SensorController extends Controller
     {
         $validated = $request->validate([
             'command' => ['required', 'in:on,off,auto'],
+        ]);
+
+        // Batalkan semua perintah sebelumnya yang belum sempat dieksekusi ESP32
+        PumpControl::where('is_executed', false)->update([
+            'is_executed' => true,
+            'executed_at' => now(),
         ]);
 
         $control = PumpControl::create([

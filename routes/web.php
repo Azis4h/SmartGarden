@@ -9,3 +9,8 @@ Route::get('/', function () {
 Route::get('/dashboard', function () {
     return view('dashboard');
 })->name('dashboard');
+
+Route::get('/history', function () {
+    return view('history');
+})->name('history');
+

@@ -38,3 +38,5 @@ Route::prefix('pump')->group(function () {
     // ESP32 → Konfirmasi perintah sudah dieksekusi
     Route::put('/command/{pumpControl}/executed', [SensorController::class, 'markPumpCommandExecuted'])->name('api.pump.executed');
 });
+
+

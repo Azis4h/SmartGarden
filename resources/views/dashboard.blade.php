@@ -841,7 +841,7 @@
         <!-- Chart -->
         <div class="card chart-card">
             <div class="chart-header">
-                <div class="chart-title">📈 Grafik Kelembapan</div>
+                <div class="chart-title">Grafik Kelembapan</div>
                 <div class="chart-legend">
                     <div class="legend-item">
                         <div class="legend-dot" style="background:var(--green-400)"></div>
@@ -856,16 +856,13 @@
 
         <!-- Pump Control -->
         <div class="card control-card">
-            <h2>⚡ Kontrol Pompa</h2>
+            <h2>Kontrol Pompa</h2>
             <div class="control-buttons">
-                <button id="btnOn" class="btn-control btn-on" onclick="sendPumpCommand('on')" aria-label="Nyalakan pompa">
-                    💧 ON
-                </button>
-                <button id="btnOff" class="btn-control btn-off" onclick="sendPumpCommand('off')" aria-label="Matikan pompa">
-                    🚫 OFF
+                <button id="btnManual" class="btn-control btn-off" onclick="toggleManualPump()" aria-label="Kontrol Manual Pompa">
+                    MANUAL
                 </button>
                 <button id="btnAuto" class="btn-control btn-auto" onclick="sendPumpCommand('auto')" aria-label="Mode otomatis pompa">
-                    🤖 AUTO
+                    AUTO
                 </button>
             </div>
             <div class="cmd-status" id="cmdStatus">
@@ -878,8 +875,11 @@
     <!-- ============ HISTORY TABLE ============ -->
     <div class="card table-card">
         <div class="table-header">
-            <div class="table-title">📋 Riwayat Sensor</div>
-            <span class="table-count" id="historyCount">0 data</span>
+            <div class="table-title">Riwayat Sensor</div>
+            <div style="display:flex; gap:12px; align-items:center;">
+                <span class="table-count" id="historyCount">0 data</span>
+                <a href="{{ route('history') }}" class="btn-control btn-auto" style="padding:6px 14px; min-width:auto; text-decoration:none; font-size:0.75rem;">Lihat Semua Riwayat ➔</a>
+            </div>
         </div>
 
         <div id="tableWrapper">
@@ -921,6 +921,8 @@ const CHART_MAX = 30;   // maksimum titik di grafik
 let soilChart      = null;
 let lastUpdateTime = null;
 let activeCmd      = null;
+let isSendingCmd   = false;
+let currentPumpStatus = false;
 
 // ---------------------------------------------------
 // Chart Initialization
@@ -1061,11 +1063,32 @@ function updateMetricCards(data) {
     document.getElementById('rainValue').style.color = isRaining ? 'var(--blue-400)' : 'var(--amber-400)';
 
     // Pump
-    const pumpOn   = data.pump_status;
+    const pumpOn = data.pump_status;
+    currentPumpStatus = pumpOn;
+    
     const pumpBadge = document.getElementById('pumpBadge');
     pumpBadge.textContent = data.pump_label ?? '—';
     pumpBadge.className   = 'pump-status-value ' + (pumpOn ? 'pump-on' : 'pump-off');
     document.getElementById('pumpModeText').textContent = 'Mode: ' + (activeCmd ? activeCmd.toUpperCase() : 'AUTO');
+
+    // Update UI Button Manual
+    const btnManual = document.getElementById('btnManual');
+    if (activeCmd === 'on' || activeCmd === 'off') {
+        // Jika mode manual aktif
+        btnManual.classList.add('active-cmd');
+        if (pumpOn) {
+            btnManual.innerHTML = '🚫 MANUAL (MATIKAN)';
+            btnManual.className = 'btn-control btn-off active-cmd'; // merah karena aksi selanjutnya mematikan
+        } else {
+            btnManual.innerHTML = '💧 MANUAL (NYALAKAN)';
+            btnManual.className = 'btn-control btn-on active-cmd'; // hijau karena aksi selanjutnya menyalakan
+        }
+    } else {
+        // Jika mode auto aktif
+        btnManual.classList.remove('active-cmd');
+        btnManual.innerHTML = '⚙️ MANUAL';
+        btnManual.className = 'btn-control btn-off';
+    }
 
     // RTC Clock
     if (data.recorded_at) {
@@ -1173,14 +1196,19 @@ function setOfflineStatus() {
 // Pump Command
 // ---------------------------------------------------
 async function sendPumpCommand(cmd) {
+    if (isSendingCmd) return; // Mencegah spam klik beruntun
+    isSendingCmd = true;
+    
     activeCmd = cmd;
 
     // Highlight active button
-    ['btnOn', 'btnOff', 'btnAuto'].forEach(id => {
-        document.getElementById(id).classList.remove('active-cmd');
-    });
-    const btnMap = { on: 'btnOn', off: 'btnOff', auto: 'btnAuto' };
-    document.getElementById(btnMap[cmd])?.classList.add('active-cmd');
+    if (cmd === 'auto') {
+        document.getElementById('btnAuto').classList.add('active-cmd');
+        document.getElementById('btnManual').classList.remove('active-cmd');
+    } else {
+        document.getElementById('btnAuto').classList.remove('active-cmd');
+        document.getElementById('btnManual').classList.add('active-cmd');
+    }
 
     try {
         const res  = await fetch(`${API_BASE}/pump/command`, {
@@ -1200,11 +1228,23 @@ async function sendPumpCommand(cmd) {
     } catch (err) {
         showCmdStatus('❌ Error koneksi server');
         showToast('Error: Tidak dapat terhubung ke server', 'error');
+    } finally {
+        // Beri jeda 500ms sebelum tombol bisa ditekan lagi
+        setTimeout(() => { isSendingCmd = false; }, 500);
     }
 }
 
 function showCmdStatus(msg) {
     document.getElementById('cmdStatus').innerHTML = msg;
+}
+
+// ---------------------------------------------------
+// Toggle Manual Pump
+// ---------------------------------------------------
+function toggleManualPump() {
+    // Jika pompa sedang menyala, kirim OFF. Jika mati, kirim ON.
+    const newCmd = currentPumpStatus ? 'off' : 'on';
+    sendPumpCommand(newCmd);
 }
 
 // ---------------------------------------------------
