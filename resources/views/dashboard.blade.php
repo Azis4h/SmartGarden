@@ -1077,16 +1077,16 @@ function updateMetricCards(data) {
         // Jika mode manual aktif
         btnManual.classList.add('active-cmd');
         if (pumpOn) {
-            btnManual.innerHTML = '🚫 MANUAL (MATIKAN)';
+            btnManual.innerHTML = 'MANUAL (MATIKAN)';
             btnManual.className = 'btn-control btn-off active-cmd'; // merah karena aksi selanjutnya mematikan
         } else {
-            btnManual.innerHTML = '💧 MANUAL (NYALAKAN)';
+            btnManual.innerHTML = 'MANUAL (NYALAKAN)';
             btnManual.className = 'btn-control btn-on active-cmd'; // hijau karena aksi selanjutnya menyalakan
         }
     } else {
         // Jika mode auto aktif
         btnManual.classList.remove('active-cmd');
-        btnManual.innerHTML = '⚙️ MANUAL';
+        btnManual.innerHTML = 'MANUAL';
         btnManual.className = 'btn-control btn-off';
     }
 
